@@ -40,6 +40,7 @@ clistones_register_chirp(
   SUFLOAT cum_doppler = 0;
   SUFLOAT cum_snr = 0;
   SUFLOAT max_snr = 0;
+  SUFLOAT val;
   SUCOMPLEX prev = 0;
   SUBOOL ok = SU_FALSE;
 
@@ -47,60 +48,52 @@ clistones_register_chirp(
       path = strbuild("%s/event_%06d.dat", self->directory, self->event_count),
       goto done);
 
-  if ((fp = fopen(path, "w")) == NULL) {
+  if ((fp = fopen(path, "wb")) == NULL) {
     SU_ERROR("Failed to open `%s' for writing: %s\n", path, strerror(errno));
     goto done;
   }
 
   /* Save data */
   SU_TRYCATCH(
-      fprintf(fp, "EVENT_INDEX: %d\n", self->event_count) > 0,
+      fprintf(fp, "EVENT_INDEX     =%15d", self->event_count) > 0,
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "TIMESTAMP_SEC: %d\n", tv.tv_sec) > 0,
+      fprintf(fp, "TIMESTAMP_SEC   =%15d", tv.tv_sec) > 0,
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "TIMESTAMP_USEC: %d\n", tv.tv_usec) > 0,
+      fprintf(fp, "TIMESTAMP_USEC  =%15d", tv.tv_usec) > 0,
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "TIMESTAMP_USEC: %d\n", tv.tv_usec) > 0,
+      fprintf(fp, "SAMPLE_RATE     =%15d", self->det_params.fs) > 0,
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "SAMPLE_RATE: %d\n", self->det_params.fs) > 0,
+      fprintf(fp, "CAPTURE_LEN     =%15d", chirp->length) > 0,
       goto done);
 
-  SU_TRYCATCH(fprintf(fp, "X: ") > 0, goto done);
-  for (i = 0; i < chirp->length; ++i)
-    SU_TRYCATCH(
-        fprintf(
-            fp,
-            "%s(%.8e:%+.8e)",
-            i > 0 ? "," : "",
-                SU_C_REAL(chirp->x[i]), SU_C_IMAG(chirp->x[i])) > 0,
-        goto done);
-  SU_TRYCATCH(fprintf(fp, "\n") > 0, goto done);
+  SU_TRYCATCH(fprintf(fp, "DATA SECTION START              ") > 0, goto done);
 
-  SU_TRYCATCH(fprintf(fp, "SNR: ") > 0, goto done);
-  for (i = 0; i < chirp->length; ++i)
-    SU_TRYCATCH(
-        fprintf(
-            fp,
-            "%s%.8e", i > 0 ? "," : "",
-                graves_det_q_to_snr(
-                    self->det_params.lpf2 / self->det_params.lpf1,
-                    chirp->q[i])) > 0,
-        goto done);
-  SU_TRYCATCH(fprintf(fp, "\n") > 0, goto done);
+  /* Save I/Q block */
+  SU_TRYCATCH(
+      fwrite(chirp->x, chirp->length * sizeof(SUCOMPLEX), 1, fp) == 1,
+      goto done);
+
+  /* Save SNR block */
+  for (i = 0; i < chirp->length; ++i) {
+    val = graves_det_q_to_snr(
+            self->det_params.lpf2 / self->det_params.lpf1,
+            chirp->q[i]);
+    SU_TRYCATCH(fwrite(&val, sizeof(SUFLOAT), 1, fp) == 1, goto done);
+  }
 
   /* Do some post processing on the chirp data */
   K = self->det_params.fs * SU_ADDSFX(.25) * SPEED_OF_LIGHT /
       (GRAVES_CENTER_FREQ * SU_ADDSFX(M_PI));
 
-  SU_TRYCATCH(fprintf(fp, "DOPPLER: ") > 0, goto done);
+  /* Save Doppler block */
   max_snr = 0;
   for (i = 0; i < chirp->length; ++i) {
     offset = SU_C_ARG(chirp->x[i] * SU_C_CONJ(prev));
@@ -115,13 +108,8 @@ clistones_register_chirp(
       max_snr = snr;
 
     cum_doppler += doppler * snr;
-
-    SU_TRYCATCH(
-        fprintf(fp, "%s%.8e", i > 0 ? "," : "", doppler) > 0,
-        goto done);
+    SU_TRYCATCH(fwrite(&doppler, sizeof(SUFLOAT), 1, fp) == 1, goto done);
   }
-
-  SU_TRYCATCH(fprintf(fp, "\n") > 0, goto done);
 
   summary->index    = self->event_count;
   summary->tv       = tv;
