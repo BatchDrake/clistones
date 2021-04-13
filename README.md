@@ -21,7 +21,7 @@ Optionally, you may run `sudo make install` to install it system-wide.
 Just plug your radio to the line-in of your computer, tune it to 145.049 kHz USB 
 (or 145.051 kHz LSB, although this will reverse the sign of the Doppler) and then 
 run `./clistones` (or `clistones` if you installed it system-wide).  You should see
-a banner a text line for every detected echo.
+a text line for every echo detected by the program.
 
 ## I don't have a radio (yet), how do I test it?
 If you have [PulseAudio](https://es.wikipedia.org/wiki/PulseAudio), simply run 
