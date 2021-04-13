@@ -44,7 +44,7 @@ clistones_register_chirp(
   SUBOOL ok = SU_FALSE;
 
   SU_TRYCATCH(
-      path = strbuild("%s/event_%06d.py", self->directory, self->event_count),
+      path = strbuild("%s/event_%06d.dat", self->directory, self->event_count),
       goto done);
 
   if ((fp = fopen(path, "w")) == NULL) {
@@ -78,7 +78,7 @@ clistones_register_chirp(
     SU_TRYCATCH(
         fprintf(
             fp,
-            "(%s%.8e:%+.8e)",
+            "%s(%.8e:%+.8e)",
             i > 0 ? "," : "",
                 SU_C_REAL(chirp->x[i]), SU_C_IMAG(chirp->x[i])) > 0,
         goto done);
