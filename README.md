@@ -12,7 +12,7 @@ Clone the repo and `cd` to the main directory. Then run:
 ```
 % mkdir build
 % cd build
-% cmake
+% cmake ..
 % make
 ```
 Optionally, you may run `sudo make install` to install it system-wide.
