@@ -12,14 +12,14 @@ Clone the repo and `cd` to the main directory. Then run:
 ```
 % mkdir build
 % cd build
-% cmake
+% cmake ..
 % make
 ```
 Optionally, you may run `sudo make install` to install it system-wide.
 
 ## Running the program
-Just plug your radio to the line-in of your computer, tune it to 145.049 kHz USB 
-(or 145.051 kHz LSB, although this will reverse the sign of the Doppler) and then 
+Just plug your radio to the line-in of your computer, tune it to 143.049 kHz USB 
+(or 143.051 kHz LSB, although this will reverse the sign of the Doppler) and then 
 run `./clistones` (or `clistones` if you installed it system-wide).  You should see
 a text line for every echo detected by the program.
 
