@@ -18,6 +18,10 @@
 
 */
 
+#ifndef FILENAME
+#  define FILENAME __FILENAME__
+#endif /* FILENAME */
+
 #include <stdio.h>
 #include <clistones.h>
 #include <errno.h>

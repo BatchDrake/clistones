@@ -22,6 +22,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef FILENAME
+#  define FILENAME __FILENAME__
+#endif /* FILENAME */
+
 #include <graves.h>
 
 void
