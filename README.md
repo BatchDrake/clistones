@@ -2,7 +2,7 @@
 A CLI application to register meteor echoes produced by the french radar system GRAVES
 
 ## Requirements
-* sigutils (http://github.com/BatchDrake/sigutils) **Note: you will need the develop branch**
+* sigutils (http://github.com/BatchDrake/sigutils) **Note: you will need the most recent version of the develop branch**
 * alsa (you need to install libasound2-dev in Debian-based systems)
 * CMake 3.11 or newer (although it may work with older versions)
 
