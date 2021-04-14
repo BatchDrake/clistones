@@ -407,9 +407,21 @@ clistones_new(const struct clistones_params *params)
   time_t t;
   struct tm *tm;
 
+  /* Sanity checks */
+  if (SU_ABS(params->freq_offset) >= .5 * CLISTONES_SAMP_RATE) {
+    SU_ERROR("Frequency offset is outside the sampling bandwidth\n");
+    SU_ERROR(
+        "|%g| Hz >= %g Hz\n",
+        params->freq_offset,
+        .5 * CLISTONES_SAMP_RATE);
+    goto fail;
+  }
+
+  /* Allocate object */
   SU_TRYCATCH(new = calloc(1, sizeof (clistones_t)), goto fail);
   new->params = *params;
 
+  /* Initialize directory */
   if (params->output_dir == NULL) {
     time(&t);
     tm = gmtime(&t);
@@ -429,22 +441,6 @@ clistones_new(const struct clistones_params *params)
 
   directory = new->directory;
 
-  SU_TRYCATCH(
-      new->buffer = malloc(sizeof(uint16_t) * CLISTONES_READ_SIZE),
-      goto fail);
-
-  det_params.fs = CLISTONES_SAMP_RATE;
-  new->det_params = det_params;
-
-  SU_TRYCATCH(
-      new->detector = graves_det_new(
-          &new->det_params,
-          clistones_on_chirp,
-          new),
-      goto fail);
-
-  SU_TRYCATCH(new->pcm = clistones_open_audio(params), goto fail);
-
   if (strcmp(directory, ".") != 0 && access(directory, F_OK) == -1) {
     if (mkdir(directory, 0755) == -1 && errno != EEXIST) {
       SU_ERROR(
@@ -455,8 +451,28 @@ clistones_new(const struct clistones_params *params)
     }
   }
 
-  SU_TRYCATCH(path = strbuild("%s/events.csv", directory), goto fail);
+  /* Initialize audio sample buffer */
+  SU_TRYCATCH(
+      new->buffer = malloc(sizeof(uint16_t) * CLISTONES_READ_SIZE),
+      goto fail);
 
+  /* Initialize echo detector */
+  det_params.fs   = CLISTONES_SAMP_RATE;
+  det_params.fc   = params->freq_offset;
+  new->det_params = det_params;
+
+  SU_TRYCATCH(
+      new->detector = graves_det_new(
+          &new->det_params,
+          clistones_on_chirp,
+          new),
+      goto fail);
+
+  /* Open audio capture device */
+  SU_TRYCATCH(new->pcm = clistones_open_audio(params), goto fail);
+
+  /* Open event log */
+  SU_TRYCATCH(path = strbuild("%s/events.csv", directory), goto fail);
   if ((new->logfp = fopen(path, "w")) == NULL) {
     SU_ERROR(
         "Failed to create event log file `%s': %s\n",
@@ -465,6 +481,7 @@ clistones_new(const struct clistones_params *params)
     goto fail;
   }
 
+  /* Set the current time and finish */
   gettimeofday(&new->first, NULL);
 
   return new;
@@ -508,6 +525,7 @@ help(const char *a0)
   fprintf(stderr, "OPTIONS:\n");
   fprintf(stderr, "  -d, --device=DEV  Sets ALSA capture device to DEV\n");
   fprintf(stderr, "  -o, --dir=DIR     Sets the output data directory to DIR\n");
+  fprintf(stderr, "  -f, --shift=HZ    Sets the frequency shift to Hz (default is 1000 Hz)\n");
   fprintf(stderr, "  -s, --snr=SNR_DB  Sets the SNR threshold for detection (dB)\n");
   fprintf(stderr, "  -t, --duration=T  Sets the duration threshold in seconds\n");
   fprintf(stderr, "  -Z, --zhr=EVENTS  Sets the ZHR report update interval\n\n");
@@ -518,6 +536,7 @@ static struct option long_options[] =
 {
   {"device",   required_argument, 0, 'd'},
   {"dir",      required_argument, 0, 'o'},
+  {"shift",    required_argument, 0, 'f'},
   {"snr",      required_argument, 0, 's'},
   {"duration", required_argument, 0, 't'},
   {"zhr",      required_argument, 0, 'Z'},
@@ -540,7 +559,7 @@ main(int argc, char **argv, char **envp)
   }
 
   for (;;) {
-    c = getopt_long(argc, argv, "d:o:s:t:Z:h", long_options, &option_index);
+    c = getopt_long(argc, argv, "d:o:f:s:t:Z:h", long_options, &option_index);
 
     if (c == -1)
       break;
@@ -562,6 +581,14 @@ main(int argc, char **argv, char **envp)
         }
 
         params.snr_threshold = SU_POWER_MAG(params.snr_threshold);
+        break;
+
+      case 'f':
+        if (sscanf(optarg, "%g", &params.freq_offset) < 1) {
+          fprintf(stderr, "%s: invalid frequency offset\n\n", argv[0]);
+          help(argv[0]);
+          goto done;
+        }
         break;
 
       case 't':
@@ -613,10 +640,10 @@ main(int argc, char **argv, char **envp)
   printf("\n");
   printf("Brought to you with love and kindness by Gonzalo J. Carracedo\n\n");
   printf("  Listening samples from audio device \"%s\"\n", params.device);
-  printf("  Data directory:  %s\n", clistones->directory);
+  printf("  Data directory:  %s\n", clistones_data_directory(clistones));
+  printf("  Frequency shift: %g Hz\n", params.freq_offset);
   printf("  SNR threshold:   %g dB\n", SU_POWER_DB(params.snr_threshold));
   printf("  Min duration:    %g seconds\n", params.duration_threshold);
-
   if (params.cycle_len != 0)
     printf("  ZHR report update every %d events\n", params.cycle_len);
   else

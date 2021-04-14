@@ -31,6 +31,7 @@
 struct clistones_params {
   const char *output_dir;
   const char *device;
+  SUFLOAT freq_offset;
   SUFLOAT snr_threshold;
   SUFLOAT duration_threshold;
   unsigned int cycle_len;
@@ -38,11 +39,12 @@ struct clistones_params {
 
 #define clistones_params_INITIALIZER    \
 {                                       \
-  NULL,                                 \
-  "default",                            \
-  1,                                    \
-  0.25,                                 \
-  10                                    \
+  NULL,      /* output_dir */           \
+  "default", /* device */               \
+  1000.,     /* freq_offset */          \
+  1,         /* snr_threshold */        \
+  0.25,      /* duration_threshold */   \
+  10         /* cycle_len */            \
 }
 
 struct clistones_chirp_summary {
@@ -71,6 +73,12 @@ struct clistones {
 };
 
 typedef struct clistones clistones_t;
+
+SUINLINE const char *
+clistones_data_directory(const clistones_t *self)
+{
+  return self->directory;
+}
 
 clistones_t *clistones_new(const struct clistones_params *params);
 void clistones_cancel(clistones_t *self);
