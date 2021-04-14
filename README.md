@@ -17,7 +17,7 @@ Clone the repo and `cd` to the main directory. Then run:
 ```
 Optionally, you may run `sudo make install` to install it system-wide.
 
-### Help! I'm getting thousand of build errors!
+### Help! I'm getting thousands of build errors!
 If after running `make` you see errors like these:
 
 ```
@@ -34,6 +34,8 @@ In file included from /home/waldo/Documents/Desarrollo/clistones/src/graves.c:29
 /home/waldo/Documents/Desarrollo/clistones/include/graves.h:115:3: error: unknown type name ‘grow_buf_t’
   115 |   grow_buf_t chirp;
       |   ^~~~~~~~~~
+
+...
 
 ```
 
