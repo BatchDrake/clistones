@@ -299,7 +299,7 @@ clistones_open_audio(const struct clistones_params *params)
   int i, err;
   unsigned int rate = CLISTONES_SAMP_RATE;
   snd_pcm_t *capture_handle = NULL;
-  snd_pcm_hw_params_t *hw_params;
+  snd_pcm_hw_params_t *hw_params = NULL;
   snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
   SUBOOL ok = SU_FALSE;
 
