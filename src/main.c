@@ -215,7 +215,7 @@ clistones_on_chirp(void *privdata, const struct graves_chirp_info *chirp)
     SU_TRYCATCH(
         fprintf(
             self->logfp,
-            "%d,%d.%d,%e.10,%e.10,%e.10,%e.10,%e.10\n",
+            "%d,%d,%d,%e.10,%e.10,%e.10,%e.10,%e.10\n",
             summary.index,
             summary.tv.tv_sec,
             summary.tv.tv_usec,
