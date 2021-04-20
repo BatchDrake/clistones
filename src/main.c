@@ -59,19 +59,19 @@ clistones_register_chirp(
 
   /* Save data */
   SU_TRYCATCH(
-      fprintf(fp, "EVENT_INDEX     =%15d", self->event_count) > 0,
+      fprintf(fp, "EVENT_INDEX     =%15d", (int) self->event_count) > 0,
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "TIMESTAMP_SEC   =%15d", tv.tv_sec) > 0,
+      fprintf(fp, "TIMESTAMP_SEC   =%15lu", tv.tv_sec) > 0,
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "TIMESTAMP_USEC  =%15d", tv.tv_usec) > 0,
+      fprintf(fp, "TIMESTAMP_USEC  =%15lu", tv.tv_usec) > 0,
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "SAMPLE_RATE     =%15d", self->det_params.fs) > 0,
+      fprintf(fp, "SAMPLE_RATE     =%15luu", self->det_params.fs) > 0,
       goto done);
 
   SU_TRYCATCH(
@@ -215,9 +215,9 @@ clistones_on_chirp(void *privdata, const struct graves_chirp_info *chirp)
     SU_TRYCATCH(
         fprintf(
             self->logfp,
-            "%d,%d,%d,%.10e,%.10e,%.10e,%.10e,%.10e\n",
+            "%d,%ld,%lu,%.10e,%.10e,%.10e,%.10e\n",
             summary.index,
-            summary.tv.tv_sec,
+            (long) summary.tv.tv_sec,
             summary.tv.tv_usec,
             summary.duration,
             summary.mean_snr,
