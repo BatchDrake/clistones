@@ -40,7 +40,7 @@ clistones_register_chirp(
   FILE *fp = NULL;
   unsigned int i;
   char *path = NULL;
-  SUFLOAT K, offset, snr, doppler;
+  SUFLOAT K, offset, doppler;
   SUFLOAT cum_doppler = 0;
   SUFLOAT cum_snr = 0;
   SUFLOAT max_snr = 0;
@@ -89,7 +89,7 @@ clistones_register_chirp(
   for (i = 0; i < chirp->length; ++i) {
     val = graves_det_q_to_snr(
             self->det_params.lpf2 / self->det_params.lpf1,
-            chirp->q[i]);
+            chirp->snr[i]);
     SU_TRYCATCH(fwrite(&val, sizeof(SUFLOAT), 1, fp) == 1, goto done);
   }
 
@@ -104,14 +104,11 @@ clistones_register_chirp(
     prev = chirp->x[i];
     doppler = K * offset;
 
-    snr = graves_det_q_to_snr(
-            self->det_params.lpf2 / self->det_params.lpf1,
-            chirp->q[i]);
-    cum_snr += snr;
-    if (snr > max_snr)
-      max_snr = snr;
+    cum_snr += chirp->snr[i];
+    if (chirp->snr[i] > max_snr)
+      max_snr = chirp->snr[i];
 
-    cum_doppler += doppler * snr;
+    cum_doppler += doppler * chirp->snr[i];
     SU_TRYCATCH(fwrite(&doppler, sizeof(SUFLOAT), 1, fp) == 1, goto done);
   }
 
@@ -180,7 +177,7 @@ clistones_on_chirp(void *privdata, const struct graves_chirp_info *chirp)
         ticks = snr < 1 ? 1 : floor(snr);
 
         printf(
-            "STONE EVENT %07d %6.2f s (%+6.2f m/s) SNR: %+6.2f dB (max %+6.2f dB) [",
+            "STONE EVENT %07d %6.2f s (%+8.2f m/s) SNR: %+6.2f dB (max %+6.2f dB) [",
             self->event_count + 1,
             summary.duration,
             summary.mean_vel,
@@ -459,6 +456,7 @@ clistones_new(const struct clistones_params *params)
   /* Initialize echo detector */
   det_params.fs   = CLISTONES_SAMP_RATE;
   det_params.fc   = params->freq_offset;
+  det_params.multiplicity = params->multiplicity;
   new->det_params = det_params;
 
   SU_TRYCATCH(
@@ -529,6 +527,7 @@ help(const char *a0)
   fprintf(stderr, "  -s, --snr=SNR_DB  Sets the SNR threshold for detection (dB)\n");
   fprintf(stderr, "  -t, --duration=T  Sets the duration threshold in seconds\n");
   fprintf(stderr, "  -Z, --zhr=EVENTS  Sets the ZHR report update interval\n\n");
+  fprintf(stderr, "  -m, --mult=N      Sets the number of parallel detectors to N\n");
   fprintf(stderr, "  -h, --help        This help\n");
 }
 
@@ -540,7 +539,8 @@ static struct option long_options[] =
   {"snr",      required_argument, 0, 's'},
   {"duration", required_argument, 0, 't'},
   {"zhr",      required_argument, 0, 'Z'},
-  {"help",     no_argument, 0, 'h'},
+  {"mult",     required_argument, 0, 'm'},
+  {"help",     no_argument,       0, 'h'},
   {0, 0, 0, 0}
 };
 
@@ -559,7 +559,7 @@ main(int argc, char **argv, char **envp)
   }
 
   for (;;) {
-    c = getopt_long(argc, argv, "d:o:f:s:t:Z:h", long_options, &option_index);
+    c = getopt_long(argc, argv, "m:d:o:f:s:t:Z:h", long_options, &option_index);
 
     if (c == -1)
       break;
@@ -607,6 +607,14 @@ main(int argc, char **argv, char **envp)
         }
         break;
 
+      case 'm':
+        if (sscanf(optarg, "%u", &params.multiplicity) < 1) {
+          fprintf(stderr, "%s: invalid detector multiplicity\n\n", argv[0]);
+          help(argv[0]);
+          goto done;
+        }
+        break;
+
       case 'h':
         help(argv[0]);
         ret = EXIT_SUCCESS;
@@ -644,6 +652,8 @@ main(int argc, char **argv, char **envp)
   printf("  Frequency shift: %g Hz\n", params.freq_offset);
   printf("  SNR threshold:   %g dB\n", SU_POWER_DB(params.snr_threshold));
   printf("  Min duration:    %g seconds\n", params.duration_threshold);
+  printf("  Multiplicity:    %d detectors in parallel\n", params.multiplicity);
+
   if (params.cycle_len != 0)
     printf("  ZHR report update every %d events\n", params.cycle_len);
   else

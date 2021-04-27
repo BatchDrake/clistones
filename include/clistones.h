@@ -35,6 +35,7 @@ struct clistones_params {
   SUFLOAT snr_threshold;
   SUFLOAT duration_threshold;
   unsigned int cycle_len;
+  unsigned int multiplicity;
 };
 
 #define clistones_params_INITIALIZER    \
@@ -44,7 +45,8 @@ struct clistones_params {
   1000.,     /* freq_offset */          \
   1,         /* snr_threshold */        \
   0.25,      /* duration_threshold */   \
-  10         /* cycle_len */            \
+  10,        /* cycle_len */            \
+  1,         /* multiplicity */         \
 }
 
 struct clistones_chirp_summary {

@@ -60,13 +60,13 @@ struct graves_chirp_info {
   const SUCOMPLEX *x;
 
   /* Quotient data */
-  const SUFLOAT   *q;
+  const SUFLOAT   *snr;
 
   /* Narrow channel power data */
-  const SUFLOAT   *p_n;
+  const SUFLOAT   *S;
 
   /* Wide channel power data */
-  const SUFLOAT   *p_w;
+  const SUFLOAT   *N;
 };
 
 typedef SUBOOL (*graves_chirp_cb_t) (
@@ -79,43 +79,61 @@ struct graves_det_params {
   SUFLOAT  lpf1;
   SUFLOAT  lpf2;
   SUFLOAT  threshold;
+  SUSCOUNT multiplicity;
 };
 
-#define graves_det_params_INITIALIZER \
-{                                     \
-  8000,             /* fs */          \
-  SU_ADDSFX(1000.), /* fc */          \
-  SU_ADDSFX(300.),  /* lpf1 */        \
-  SU_ADDSFX(50.),   /* lpf2 */        \
-  SU_ADDSFX(2.),    /* threshoid */   \
+#define graves_det_params_INITIALIZER  \
+{                                      \
+  8000,             /* fs */           \
+  SU_ADDSFX(1000.), /* fc */           \
+  SU_ADDSFX(300.),  /* lpf1 */         \
+  SU_ADDSFX(50.),   /* lpf2 */         \
+  SU_ADDSFX(2.),    /* threshold */    \
+  1,                /* multiplicity */ \
 }
 
-struct graves_det {
-  struct graves_det_params params;
-  SUFLOAT ratio;
-  SUSCOUNT n;          /* Samples consumed */
-  su_iir_filt_t lpf1; /* Low pass filter 1. Used to detect noise power */
-  su_iir_filt_t lpf2; /* Low pass filter 2. Used to isolate chirps */
-  su_ncqo_t lo;
-  SUFLOAT alpha; /* Slow decay, used to detect chirps */
-  SUFLOAT last_good_q;
-  SUFLOAT p_w; /* Wide channel power */
-  SUFLOAT p_n; /* Narrow channel power */
+struct graves_det_element {
+  su_iir_filt_t lpf1; /* Wide band filter: used to probe noise power */
+  su_iir_filt_t lpf2; /* Narrow band filter: used to isolate chirps */
 
-  SUSCOUNT hist_len;
+  SUFLOAT alpha;
+  SUFLOAT ratio;
+  SUFLOAT energy_thres;
+
+  SUFLOAT hist_len;
   SUSCOUNT p;
+
+  SUFLOAT p_w;
+  SUFLOAT p_n;
+  SUFLOAT last_good_q;
+
+  SUBOOL    *pres_hist;
   SUFLOAT   *p_n_hist;
   SUFLOAT   *p_w_hist;
   SUFLOAT   *q_hist;
   SUCOMPLEX *samp_hist;
 
-  SUFLOAT   energy_thres;
-  SUBOOL    in_chirp;
+  SUBOOL    present;
+  SUCOMPLEX y;
+};
+
+struct graves_det {
+  struct graves_det_params params;
+  SUSCOUNT n;          /* Samples consumed */
+
+  su_ncqo_t lo;        /* Local oscillator (tuned to lowest frequency) */
+  su_ncqo_t mixer;     /* Multichannel mixer */
+  su_ncqo_t center;    /* Channel centerer */
+
+  struct graves_det_element *det_bank; /* Detector bank */
+
+  SUBOOL in_chirp;
+  SUCOMPLEX *mixer_hist;
 
   grow_buf_t chirp;
-  grow_buf_t q;
-  grow_buf_t p_n_buf;
-  grow_buf_t p_w_buf;
+  grow_buf_t snr_buf;
+  grow_buf_t S_buf;
+  grow_buf_t N_buf;
 
   void *privdata;
 
@@ -123,33 +141,6 @@ struct graves_det {
 };
 
 typedef struct graves_det graves_det_t;
-
-/*
- * Q is actually the quotient of the averaged power at the output of
- * two filters: P_n / P_w
- *
- * When a signal is present, the power can be expressed as the sum of 2
- * contributions:
- *
- *   P_n = W_n * N + S
- *   P_w = W_w * N + S
- *
- * Where N is the PSD of the noise and W_n, W_w are the bandwidths of the
- * narrow and wide low pass filters respectively. We want to deduce S / (W_w * N),
- * therefore:
- *
- * P_n - W_n * N = P_w - W_w * N -> (P_n - P_w) / (W_n - W_w) = N
- *
- * And replacing:
- *
- * S = P_n - W_n * (P_n - P_w) / (W_n - W_w)
- *
- * And finally :
- *
- * S / N = (P_n - W_n * (P_n - P_w) / (W_n - W_w))  / ((P_n - P_w) / (W_n - W_w))
- *
- */
-
 
 SUINLINE SUFLOAT
 graves_det_q_to_snr(SUFLOAT ratio, SUFLOAT q)
@@ -166,7 +157,7 @@ graves_det_get_N0(SUFLOAT ratio, SUFLOAT p_n, SUFLOAT snr)
 SUINLINE SUFLOAT
 graves_det_get_ratio(const graves_det_t *det)
 {
-  return det->ratio;
+  return det->det_bank[0].ratio;
 }
 
 SUINLINE const struct graves_det_params *
