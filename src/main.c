@@ -71,7 +71,7 @@ clistones_register_chirp(
       goto done);
 
   SU_TRYCATCH(
-      fprintf(fp, "SAMPLE_RATE     =%15luu", self->det_params.fs) > 0,
+      fprintf(fp, "SAMPLE_RATE     =%15lu", self->det_params.fs) > 0,
       goto done);
 
   SU_TRYCATCH(
